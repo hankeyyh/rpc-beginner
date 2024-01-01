@@ -28,12 +28,8 @@ func main() {
 		if err != nil {
 			log.Println(err)
 		}
-		msg = strings.TrimSpace(msg)
-		if len(msg) == 0 {
-			continue
-		}
 
-		req := proto.NewContent(msg, seq)
+		req := proto.NewContent(strings.TrimSpace(msg), seq)
 		seq++
 		err = codec.Encode(req)
 		if err != nil {
