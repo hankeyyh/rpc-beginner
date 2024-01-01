@@ -4,6 +4,8 @@ import (
 	"io"
 	"log"
 	"net"
+
+	"rpc-beginner/proto"
 )
 
 func main() {
@@ -27,10 +29,13 @@ func main() {
 func serveConn(conn net.Conn) {
 	defer conn.Close()
 	log.Printf("conn from %s\n", conn.RemoteAddr())
-	buf := make([]byte, 1024)
+	// buf := make([]byte, 1024)
+
+	codec := proto.NewContentGobCodec(conn)
 
 	for {
-		nrecv, err := conn.Read(buf)
+		var req proto.Content
+		err := codec.Decode(&req)
 		if err != nil {
 			if err == io.EOF {
 				log.Printf("conn closed from %s\n", conn.RemoteAddr())
@@ -38,13 +43,15 @@ func serveConn(conn net.Conn) {
 			}
 			log.Println(err)
 		}
-		content := string(buf[:nrecv])
-		log.Printf("[client]: %q (%d bytes)\n", content, nrecv)
+		log.Printf("[client] msg: %q, seq: %d\n", req.Msg, req.Seq)
 
-		// echo back
-		content = "echo " + content
-		_, err = conn.Write([]byte(content))
+		rsp := proto.NewContent("echo " + req.Msg, req.Seq)
+		err = codec.Encode(rsp)
 		if err != nil {
+			if err == io.EOF {
+				log.Printf("conn closed from %s\n", conn.RemoteAddr())
+				break
+			}
 			log.Println(err)
 		}
 	}

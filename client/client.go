@@ -2,10 +2,13 @@ package main
 
 import (
 	"bufio"
+	"io"
 	"log"
 	"net"
 	"os"
 	"strings"
+
+	"rpc-beginner/proto"
 )
 
 func main() {
@@ -17,28 +20,40 @@ func main() {
 	log.Printf("conn to server %s\n", conn.RemoteAddr())
 
 	reader := bufio.NewReader(os.Stdin)
-	buf := make([]byte, 1024)
+	codec := proto.NewContentGobCodec(conn)
+	seq := 0
+
 	for {
-		content, err := reader.ReadString('\n')
+		msg, err := reader.ReadString('\n')
 		if err != nil {
 			log.Println(err)
 		}
-		content = strings.TrimSpace(content)
-		nsend, err := conn.Write([]byte(content))
-		if err != nil {
-			log.Println(err)
-		}
-		log.Printf("send %d bytes\n", nsend)
-		if nsend == 0 {
+		msg = strings.TrimSpace(msg)
+		if len(msg) == 0 {
 			continue
 		}
 
-		// recv from server
-		nrecv, err := conn.Read(buf)
+		req := proto.NewContent(msg, seq)
+		seq++
+		err = codec.Encode(req)
 		if err != nil {
-			log.Println(err)
+			if err == io.EOF {
+				log.Println("conn closed by server")
+				break
+			}
+			log.Println("codec.Encode error: ", err)
 		}
-		recvStr := string(buf[:nrecv])
-		log.Printf("[server]:%q (%d bytes)\n", recvStr, nrecv)
+
+		// recv from server
+		var rsp proto.Content
+		err = codec.Decode(&rsp)
+		if err != nil {
+			if err == io.EOF {
+				log.Println("conn closed by server")
+				break
+			}
+			log.Println("codec.Decode error: ", err)
+		}
+		log.Printf("[server] msg: %q, seq: %d\n", rsp.Msg, rsp.Seq)
 	}
 }
