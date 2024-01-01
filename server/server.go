@@ -25,6 +25,7 @@ func main() {
 }
 
 func serveConn(conn net.Conn) {
+	defer conn.Close()
 	log.Printf("conn from %s\n", conn.RemoteAddr())
 	
 	for {
