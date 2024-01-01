@@ -19,7 +19,7 @@ func main() {
 			log.Println(err)
 			continue
 		}
-		
+
 		go serveConn(conn)
 	}
 }
@@ -27,10 +27,10 @@ func main() {
 func serveConn(conn net.Conn) {
 	defer conn.Close()
 	log.Printf("conn from %s\n", conn.RemoteAddr())
-	
+	buf := make([]byte, 1024)
+
 	for {
-		buf := make([]byte, 1024)
-		nbyte, err := conn.Read(buf)
+		nrecv, err := conn.Read(buf)
 		if err != nil {
 			if err == io.EOF {
 				log.Printf("conn closed from %s\n", conn.RemoteAddr())
@@ -38,6 +38,14 @@ func serveConn(conn net.Conn) {
 			}
 			log.Println(err)
 		}
-		log.Printf("[client]: %s (%d bytes)\n", buf, nbyte)
+		content := string(buf[:nrecv])
+		log.Printf("[client]: %q (%d bytes)\n", content, nrecv)
+
+		// echo back
+		content = "echo " + content
+		_, err = conn.Write([]byte(content))
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
